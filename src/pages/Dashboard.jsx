@@ -1,23 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, FileText, BarChart3, Plus } from 'lucide-react';
 import { useAuth } from '../lib/auth.jsx';
-import { api } from '../lib/api.js';
+import { api, useCachedData, CacheKeys } from '../lib/api.js';
 import { SCORED_COUNT } from '../lib/constants.js';
 import PropertyGrid from '../components/PropertyGrid.jsx';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.getProperties().then(setProperties).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  const [properties, loading] = useCachedData(CacheKeys.properties, api.getProperties);
 
   const stats = useMemo(() => {
-    const totalDocs = properties.reduce((sum, p) => sum + (p.documents?.length || 0), 0);
-    const totalProps = properties.length;
+    const p = properties || [];
+    const totalDocs = p.reduce((sum, p) => sum + (p.documents?.length || 0), 0);
+    const totalProps = p.length;
     const pct = totalProps ? Math.round((totalDocs / (totalProps * SCORED_COUNT)) * 100) : 0;
     return { totalProps, totalDocs, pct: Math.min(pct, 100) };
   }, [properties]);
@@ -77,7 +73,7 @@ export default function Dashboard() {
       </div>
 
       <h2 className="section-heading">Your Properties</h2>
-      <PropertyGrid properties={properties} />
+      <PropertyGrid properties={properties || []} />
     </div>
   );
 }

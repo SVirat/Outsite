@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OWNERSHIP_STATUSES, slugify } from '../lib/constants.js';
-import { api } from '../lib/api.js';
+import { api, invalidateProperties, invalidateProperty } from '../lib/api.js';
 
 export default function PropertyForm({ initial }) {
   const navigate = useNavigate();
@@ -55,9 +55,12 @@ export default function PropertyForm({ initial }) {
       };
       if (isEdit) {
         await api.updateProperty(initial.id, payload);
+        invalidateProperties();
+        invalidateProperty(initial.id);
         navigate(`/properties/${slugify(form.name)}`);
       } else {
         const created = await api.createProperty(payload);
+        invalidateProperties();
         navigate(`/properties/${slugify(created.name)}`);
       }
     } catch (err) {

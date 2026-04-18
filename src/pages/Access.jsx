@@ -1,28 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../lib/auth.jsx';
-import { api } from '../lib/api.js';
+import { api, useCachedData, CacheKeys } from '../lib/api.js';
 import { ROLE_LABELS, MEMBER_ROLES } from '../lib/constants.js';
 import { UserPlus, Trash2, Mail, Shield, Users } from 'lucide-react';
 
 export default function Access() {
   const { user } = useAuth();
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const isAdmin = user?.role === 'admin';
+  const [members, loading, refreshMembers] = useCachedData(
+    CacheKeys.members,
+    () => isAdmin ? api.getMembers() : Promise.resolve([])
+  );
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('family_view');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  const isAdmin = user?.role === 'admin';
-
-  useEffect(() => {
-    if (isAdmin) {
-      api.getMembers().then(setMembers).catch(console.error).finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [isAdmin]);
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -31,10 +24,10 @@ export default function Access() {
     setError('');
     setSuccess('');
     try {
-      const member = await api.addMember(email.trim(), role);
-      setMembers(prev => [member, ...prev]);
+      await api.addMember(email.trim(), role);
       setSuccess(`Invitation sent to ${email.trim()}`);
       setEmail('');
+      refreshMembers();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -45,7 +38,7 @@ export default function Access() {
   async function handleRemove(id) {
     try {
       await api.removeMember(id);
-      setMembers(prev => prev.filter(m => m.id !== id));
+      refreshMembers();
     } catch (err) {
       setError(err.message);
     }
@@ -54,7 +47,7 @@ export default function Access() {
   async function handleRoleChange(id, newRole) {
     try {
       await api.updateMemberRole(id, newRole);
-      setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
+      refreshMembers();
     } catch (err) {
       setError(err.message);
     }
@@ -166,7 +159,7 @@ export default function Access() {
           </div>
 
           {/* Members */}
-          {members.map(m => (
+          {(members || []).map(m => (
             <div key={m.id} className="access-member-row">
               <div className="user-avatar">
                 {m.profile?.image ? (
@@ -203,7 +196,7 @@ export default function Access() {
             </div>
           ))}
 
-          {members.length === 0 && (
+          {(members || []).length === 0 && (
             <div className="access-empty">
               <p>No members yet — invite someone to get started.</p>
             </div>

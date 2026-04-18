@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase.js';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Active account ID — set by the account switcher
 let _activeAccountId = localStorage.getItem('activeAccountId') || null;
@@ -6,8 +7,61 @@ export function setActiveAccountId(id) {
   _activeAccountId = id;
   if (id) localStorage.setItem('activeAccountId', id);
   else localStorage.removeItem('activeAccountId');
+  // Clear all caches when switching accounts
+  _cache.clear();
+  _listeners.clear();
 }
 export function getActiveAccountId() { return _activeAccountId; }
+
+// ── In-memory cache with stale-while-revalidate ──────────────────────
+const _cache = new Map();     // key → { data, ts }
+const _listeners = new Map(); // key → Set<callback>
+const STALE_MS = 30_000;      // consider stale after 30s
+
+function cacheGet(key) { return _cache.get(key)?.data ?? null; }
+function cacheSet(key, data) {
+  _cache.set(key, { data, ts: Date.now() });
+  // notify all subscribers
+  const subs = _listeners.get(key);
+  if (subs) subs.forEach(fn => fn(data));
+}
+function cacheInvalidate(key) { _cache.delete(key); }
+function cacheIsStale(key) {
+  const entry = _cache.get(key);
+  return !entry || (Date.now() - entry.ts > STALE_MS);
+}
+function cacheSubscribe(key, fn) {
+  if (!_listeners.has(key)) _listeners.set(key, new Set());
+  _listeners.get(key).add(fn);
+  return () => _listeners.get(key)?.delete(fn);
+}
+
+/** Hook: returns [data, loading, refresh] with stale-while-revalidate */
+export function useCachedData(key, fetcher) {
+  const cached = cacheGet(key);
+  const [data, setData] = useState(cached);
+  const [loading, setLoading] = useState(!cached);
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+
+  const refresh = useCallback(() => {
+    const p = fetcherRef.current();
+    p.then(d => { cacheSet(key, d); setData(d); })
+     .catch(console.error)
+     .finally(() => setLoading(false));
+    return p;
+  }, [key]);
+
+  useEffect(() => {
+    // Subscribe to cache updates from mutations
+    const unsub = cacheSubscribe(key, setData);
+    // Fetch if no cache or stale
+    if (cacheIsStale(key)) refresh();
+    return unsub;
+  }, [key, refresh]);
+
+  return [data, loading, refresh];
+}
 
 async function authHeaders() {
   const sb = getSupabase();
@@ -123,3 +177,25 @@ export const api = {
     return apiFetch(`/api/search?${params}`);
   },
 };
+
+// ── Cache keys ───────────────────────────────────────────────────────
+export const CacheKeys = {
+  properties: 'properties',
+  property: (id) => `property:${id}`,
+  members: 'members',
+};
+
+// ── Cache-aware mutation helpers ─────────────────────────────────────
+export function invalidateProperties() {
+  cacheInvalidate(CacheKeys.properties);
+}
+export function invalidateProperty(id) {
+  cacheInvalidate(CacheKeys.property(id));
+}
+export function updateCachedProperty(id, updater) {
+  const cached = cacheGet(CacheKeys.property(id));
+  if (cached) cacheSet(CacheKeys.property(id), updater(cached));
+}
+export function invalidateMembers() {
+  cacheInvalidate(CacheKeys.members);
+}

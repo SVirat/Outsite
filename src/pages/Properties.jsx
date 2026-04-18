@@ -1,19 +1,13 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useAuth } from '../lib/auth.jsx';
-import { api } from '../lib/api.js';
+import { api, useCachedData, CacheKeys } from '../lib/api.js';
 import PropertyGrid from '../components/PropertyGrid.jsx';
 
 export default function Properties() {
   const { user } = useAuth();
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [properties, loading] = useCachedData(CacheKeys.properties, api.getProperties);
   const isAdmin = user?.role === 'admin';
-
-  useEffect(() => {
-    api.getProperties().then(setProperties).catch(console.error).finally(() => setLoading(false));
-  }, []);
 
   if (loading) {
     return (
@@ -39,7 +33,7 @@ export default function Properties() {
           </Link>
         )}
       </div>
-      <PropertyGrid properties={properties} />
+      <PropertyGrid properties={properties || []} />
     </div>
   );
 }

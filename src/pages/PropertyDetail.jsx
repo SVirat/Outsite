@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, MapPin, ExternalLink, Image, Upload, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../lib/auth.jsx';
-import { api } from '../lib/api.js';
+import { api, useCachedData, CacheKeys, invalidateProperties, updateCachedProperty } from '../lib/api.js';
 import { docScore, ownershipLabel, slugify } from '../lib/constants.js';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format.js';
 import DocumentList from '../components/DocumentList.jsx';
@@ -13,18 +13,11 @@ export default function PropertyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [property, setProperty] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [property, loading, refresh] = useCachedData(CacheKeys.property(id), () => api.getProperty(id));
   const [deletedDocIds, setDeletedDocIds] = useState(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [photoDeleteTarget, setPhotoDeleteTarget] = useState(null);
-
-  const load = useCallback(() => {
-    api.getProperty(id).then(setProperty).catch(() => setProperty(null)).finally(() => setLoading(false));
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
 
   const isAdmin = user?.role === 'admin';
   const canUpload = isAdmin || user?.role === 'family_contributor';
@@ -41,7 +34,7 @@ export default function PropertyDetail() {
   function handleDeleteDoc(docId) {
     setDeletedDocIds(prev => new Set(prev).add(docId));
     api.deleteDocument(docId)
-      .then(() => console.log('Doc deleted:', docId))
+      .then(() => { invalidateProperties(); })
       .catch(err => {
         console.error('Delete failed:', err);
         // Undo optimistic removal
@@ -51,7 +44,7 @@ export default function PropertyDetail() {
 
   function handleDeleteProperty() {
     navigate('/properties', { replace: true });
-    api.deleteProperty(id).catch(console.error);
+    api.deleteProperty(id).then(() => invalidateProperties()).catch(console.error);
   }
 
   if (loading) {
@@ -214,7 +207,7 @@ export default function PropertyDetail() {
                 canDelete={canDelete}
                 propertyId={property.id}
                 onDelete={handleDeleteDoc}
-                onUploadSuccess={load}
+                onUploadSuccess={() => { refresh(); invalidateProperties(); }}
               />
             </div>
           </div>
@@ -291,7 +284,7 @@ export default function PropertyDetail() {
           docType="photos"
           propertyId={property.id}
           onClose={() => setShowPhotoUpload(false)}
-          onSuccess={() => { setShowPhotoUpload(false); load(); }}
+          onSuccess={() => { setShowPhotoUpload(false); refresh(); invalidateProperties(); }}
         />
       )}
 
