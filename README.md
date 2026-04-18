@@ -37,6 +37,7 @@ A private property management vault for Indian households. Track real estate pro
 | **Email** | Resend |
 | **Maps** | Google Maps Embed + Street View Static API |
 | **Styling** | Pure CSS with custom properties (dark theme) |
+| **Hosting** | Vercel (serverless functions + static SPA) |
 
 No TypeScript. No Next.js. No Tailwind.
 
@@ -120,13 +121,18 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with Google.
 
 ```
 Outsite/
-├── server.js                    # Express server + all API routes + Vite dev middleware
+├── server.js                    # Express server + all API routes (exports app for serverless)
 ├── package.json
 ├── vite.config.js
+├── vercel.json                  # Vercel deployment config
 ├── index.html                   # SPA entry point
 ├── .env.example                 # Environment variable template
-├── PRD.md                       # Product requirements document
+├── .gitignore
+├── LICENSE.md                   # Proprietary license
+├── api/
+│   └── index.js                 # Vercel serverless entry point
 ├── docs/
+│   ├── PRD.md                   # Product requirements document
 │   ├── PRIVACY_POLICY.md
 │   └── TERMS_AND_CONDITIONS.md
 ├── supabase/
@@ -235,6 +241,28 @@ All endpoints (except `/api/config`) require authentication via `Authorization: 
 - Deleting a property **deletes** the Drive folder and all files
 - Deleting a document **deletes** the file from Drive
 - The app uses the `drive.file` scope — it can only access files it created
+
+---
+
+## Deployment (Vercel)
+
+The app is deployed to [Vercel](https://vercel.com) at **https://outsite.vercel.app**.
+
+### Setup
+
+1. Import the GitHub repo in Vercel
+2. Set **Framework Preset** to **Other**
+3. Set **Build Command** to `npx vite build`
+4. Set **Output Directory** to `dist`
+5. Add all environment variables from `.env.example` in **Settings → Environment Variables**
+   - Set `APP_URL` to `https://outsite.vercel.app`
+6. Deploy
+
+### How It Works
+
+- Vite builds the React SPA to `dist/` (served as static files)
+- All `/api/*` requests route to a single serverless function (`api/index.js`) that re-exports the Express app
+- On Vercel, `server.js` skips Vite middleware and `app.listen()` (detected via `process.env.VERCEL`)
 
 ---
 

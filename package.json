@@ -5,6 +5,7 @@
   "private": true,
   "description": "Private property management vault",
   "scripts": {
+    "build": "vite build",
     "start": "NODE_ENV=production node server.js",
     "dev": "node server.js"
   },

@@ -30,15 +30,15 @@ const env = loadEnv();
 Object.assign(process.env, env);
 
 const PORT = 3000;
-const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const SUPABASE_SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
-const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET;
-const GDRIVE_ROOT = env.GDRIVE_ROOT_FOLDER_NAME || 'PropertyVault';
-const RESEND_API_KEY = env.RESEND_API_KEY;
-const APP_URL = env.APP_URL || 'http://localhost:3000';
-const GOOGLE_MAPS_API_KEY = env.GOOGLE_MAPS_API_KEY || '';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GDRIVE_ROOT = process.env.GDRIVE_ROOT_FOLDER_NAME || 'PropertyVault';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
@@ -685,39 +685,43 @@ app.get('/api/search', auth, async (req, res) => {
 });
 
 // ── VITE DEV / STATIC PROD ────────────────────────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'dist')));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-  });
-} else {
-  const { createServer } = await import('vite');
-  const vite = await createServer({
-    server: { middlewareMode: true },
-    appType: 'spa',
-  });
-  app.use(vite.middlewares);
-}
+if (!process.env.VERCEL) {
+  if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, 'dist')));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    });
+  } else {
+    const { createServer } = await import('vite');
+    const vite = await createServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  }
 
-app.listen(PORT, async () => {
-  console.log(`\n  Outsite running at http://localhost:${PORT}\n`);
+  app.listen(PORT, async () => {
+    console.log(`\n  Outsite running at http://localhost:${PORT}\n`);
 
-  // Backfill lat/lng for properties with Google Maps URLs but no coordinates
-  try {
-    const admin = adminSupabase();
-    const { data: props } = await admin
-      .from('properties')
-      .select('id, google_maps_url')
-      .not('google_maps_url', 'is', null)
-      .is('latitude', null);
-    if (props?.length) {
-      for (const p of props) {
-        const coords = await extractCoordsFromMapsUrl(p.google_maps_url);
-        if (coords) {
-          await admin.from('properties').update({ latitude: coords.lat, longitude: coords.lng }).eq('id', p.id);
-          console.log(`  ↳ Backfilled coords for property ${p.id}: ${coords.lat}, ${coords.lng}`);
+    // Backfill lat/lng for properties with Google Maps URLs but no coordinates
+    try {
+      const admin = adminSupabase();
+      const { data: props } = await admin
+        .from('properties')
+        .select('id, google_maps_url')
+        .not('google_maps_url', 'is', null)
+        .is('latitude', null);
+      if (props?.length) {
+        for (const p of props) {
+          const coords = await extractCoordsFromMapsUrl(p.google_maps_url);
+          if (coords) {
+            await admin.from('properties').update({ latitude: coords.lat, longitude: coords.lng }).eq('id', p.id);
+            console.log(`  ↳ Backfilled coords for property ${p.id}: ${coords.lat}, ${coords.lng}`);
+          }
         }
       }
-    }
-  } catch (e) { console.error('Coord backfill failed:', e.message); }
-});
+    } catch (e) { console.error('Coord backfill failed:', e.message); }
+  });
+}
+
+export default app;

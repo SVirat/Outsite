@@ -33,6 +33,7 @@ Outsite is a **private, self-hosted web application** for cataloging real estate
 | Fonts | Inter (Google Fonts) | |
 | Theme | Dark mode, CSS custom properties | |
 | Maps | Google Maps Embed + Street View Static API | Property previews |
+| Hosting | Vercel | Serverless functions + static SPA |
 
 **No TypeScript. No Next.js. No Tailwind. Pure CSS with custom properties.**
 
@@ -504,19 +505,52 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 
 ---
 
-## 17. File Structure
+## 17. Deployment (Vercel)
+
+The app deploys to **Vercel** as a static SPA + serverless API function.
+
+### 17.1 Architecture
+- **Frontend**: Vite builds the React SPA to `dist/`. Vercel serves it as static files.
+- **API**: All Express routes are exported from `server.js` and re-exported via `api/index.js` as a single Vercel serverless function.
+- **Routing**: `vercel.json` rewrites `/api/*` to the serverless function and all other paths to `index.html` (SPA fallback).
+
+### 17.2 Environment Detection
+- On Vercel, `process.env.VERCEL` is set to `'1'` automatically.
+- When running on Vercel, `server.js` skips Vite middleware, static file serving, and `app.listen()`.
+- Environment variables are read from `process.env` (set in Vercel dashboard), not from a `.env` file.
+
+### 17.3 Vercel Settings
+- **Framework Preset**: Other
+- **Build Command**: `npx vite build`
+- **Output Directory**: `dist`
+- All environment variables from `.env.example` must be set in Vercel dashboard → Settings → Environment Variables.
+- `APP_URL` should be set to `https://outsite.vercel.app`.
+
+### 17.4 Limitations
+- Serverless function timeout: 10s (free) / 60s (Pro). Large uploads may be affected.
+- Function body size limit: ~4.5MB (free tier). Multer memory buffer may hit this for large files.
+- Coordinate backfill only runs on local server startup (not on Vercel).
+
+---
+
+## 18. File Structure
 
 ```
 Outsite/
-├── server.js                         # Express server + all API routes + Vite dev middleware
+├── server.js                         # Express server + all API routes (exports app for serverless)
 ├── package.json
 ├── vite.config.js
+├── vercel.json                       # Vercel deployment config (rewrites, function settings)
 ├── index.html                        # SPA entry point
 ├── .env                              # Environment variables (not committed)
 ├── .env.example                      # Template
-├── PRD.md                            # This document
+├── .gitignore                        # Ignores node_modules, dist, .env
 ├── README.md                         # Setup & usage guide
+├── LICENSE.md                        # Proprietary license
+├── api/
+│   └── index.js                      # Vercel serverless entry point (re-exports Express app)
 ├── docs/
+│   ├── PRD.md                        # This document
 │   ├── PRIVACY_POLICY.md
 │   └── TERMS_AND_CONDITIONS.md
 ├── supabase/
