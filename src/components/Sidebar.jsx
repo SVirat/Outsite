@@ -37,7 +37,7 @@ export default function Sidebar() {
       {open && <div className="mobile-overlay open" onClick={() => setOpen(false)} />}
       <nav className={`sidebar${open ? ' open' : ''}`}>
         <div className="sidebar-brand">
-          <Building2 size={24} />
+          <img src="/icons/icon.png" alt="Superplot" style={{ width: 24, height: 24 }} />
           <span>Superplot</span>
         </div>
 

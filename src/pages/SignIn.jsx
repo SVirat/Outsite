@@ -16,7 +16,7 @@ export default function SignIn() {
   return (
     <div className="signin-page">
       <div className="signin-card">
-        <div className="signin-icon"><Building2 size={40} /></div>
+        <div className="signin-icon"><img src="/icons/icon.png" alt="Superplot" style={{ width: 40, height: 40 }} /></div>
         <h1 className="signin-title">Superplot</h1>
         <p className="signin-desc">Your private property management vault</p>
         <button className="btn-google" onClick={signIn}>

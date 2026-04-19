@@ -79,12 +79,29 @@ async function authHeaders() {
 
 export async function apiFetch(path, opts = {}) {
   const headers = { ...opts.headers, ...(await authHeaders()) };
-  const res = await fetch(path, { ...opts, headers });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed: ${res.status}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(path, { ...opts, headers, signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Request failed: ${res.status}`);
+    }
+    return res.json();
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      // Retry once on timeout (covers serverless cold starts)
+      const res = await fetch(path, { ...opts, headers });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed: ${res.status}`);
+      }
+      return res.json();
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export const api = {

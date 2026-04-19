@@ -685,8 +685,8 @@ export default function Landing() {
             <span>Superplot</span>
           </div>
           <div className="landing-footer-links">
-            <a href="https://github.com/SVirat/Superplot/blob/main/docs/PRIVACY_POLICY.md" target="_blank" rel="noopener">Privacy Policy</a>
-            <a href="https://github.com/SVirat/Superplot/blob/main/docs/TERMS_AND_CONDITIONS.md" target="_blank" rel="noopener">Terms & Conditions</a>
+            <a href="/docs/PRIVACY_POLICY.md" target="_blank" rel="noopener">Privacy Policy</a>
+            <a href="/docs/TERMS_AND_CONDITIONS.md" target="_blank" rel="noopener">Terms & Conditions</a>
           </div>
           <p className="landing-footer-copy">&copy; {new Date().getFullYear()} Superplot. All rights reserved.</p>
         </div>
