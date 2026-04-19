@@ -200,6 +200,9 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ planId }),
     }),
+
+  cancelSubscription: () =>
+    apiFetch('/api/subscription/cancel', { method: 'POST' }),
 };
 
 // ── Cache keys ───────────────────────────────────────────────────────

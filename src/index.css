@@ -165,13 +165,33 @@ h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
   min-width: 220px; padding: 8px; z-index: 50; animation: fadeIn 150ms ease;
 }
 .header-dropdown-info { padding: 8px 12px; border-bottom: 1px solid var(--border-light); margin-bottom: 4px; }
-.header-dropdown-info .name { font-weight: 600; font-size: 0.875rem; }
+.header-dropdown-info .name { font-weight: 600; font-size: 0.875rem; display: flex; align-items: center; gap: 6px; }
 .header-dropdown-info .email { font-size: 0.75rem; color: var(--text-secondary); }
+.pro-badge {
+  display: inline-flex; align-items: center; font-size: 0.625rem; font-weight: 700;
+  letter-spacing: 0.05em; padding: 1px 6px; border-radius: 4px;
+  background: linear-gradient(135deg, #f59e0b, #f97316); color: #fff;
+  line-height: 1.4; text-transform: uppercase;
+}
 .header-dropdown button {
   width: 100%; text-align: left; padding: 8px 12px; border: none; background: none;
   font-size: 0.875rem; color: var(--text); border-radius: var(--radius-xs);
 }
 .header-dropdown button:hover { background: var(--surface-hover); }
+
+/* ── CONFIRM DIALOG ──────────────────────────────────────────────────────── */
+.confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 150ms ease;
+}
+.confirm-dialog {
+  background: var(--surface); border-radius: var(--radius); padding: 24px;
+  max-width: 400px; width: 90%; box-shadow: var(--shadow-lg);
+}
+.confirm-dialog h3 { margin: 0 0 8px; font-size: 1.1rem; }
+.confirm-dialog p { margin: 0 0 20px; font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 .page-content { flex: 1; padding: 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
 

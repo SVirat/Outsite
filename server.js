@@ -797,6 +797,55 @@ app.post('/api/subscription/create', auth, requireRole('admin'), async (req, res
   res.json({ subscriptionId: rpData.id, shortUrl: rpData.short_url });
 });
 
+// Cancel a Razorpay subscription
+app.post('/api/subscription/cancel', auth, requireRole('admin'), async (req, res) => {
+  // Backdoor users — no-op
+  if (PREMIUM_BACKDOOR_EMAILS.includes(req.profile?.email?.toLowerCase())) {
+    return res.json({ ok: true, message: 'No active paid subscription to cancel' });
+  }
+
+  const admin = adminSupabase();
+  const { data: sub } = await admin
+    .from('subscriptions')
+    .select('razorpay_subscription_id')
+    .eq('user_id', req.user.id)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!sub?.razorpay_subscription_id) {
+    return res.status(404).json({ error: 'No active subscription found' });
+  }
+
+  const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+  const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    return res.status(500).json({ error: 'Razorpay not configured' });
+  }
+
+  const rpRes = await fetch(`https://api.razorpay.com/v1/subscriptions/${sub.razorpay_subscription_id}/cancel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Basic ' + Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64'),
+    },
+    body: JSON.stringify({ cancel_at_cycle_end: 0 }),
+  });
+  const rpData = await rpRes.json();
+  if (!rpRes.ok) {
+    return res.status(500).json({ error: rpData.error?.description || 'Failed to cancel subscription' });
+  }
+
+  // Update local record
+  await admin.from('subscriptions')
+    .update({ status: 'cancelled' })
+    .eq('user_id', req.user.id)
+    .eq('razorpay_subscription_id', sub.razorpay_subscription_id);
+
+  res.json({ ok: true, message: 'Subscription cancelled' });
+});
+
 // Razorpay webhook handler (no auth — Razorpay calls this directly)
 app.post('/api/webhooks/razorpay', async (req, res) => {
   // Verify signature

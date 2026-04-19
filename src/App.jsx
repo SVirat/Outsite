@@ -42,7 +42,7 @@ function ProtectedLayout() {
 function HomePage() {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
-  if (user) return <Dashboard />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return <Landing />;
 }
 

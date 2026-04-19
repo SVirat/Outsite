@@ -435,6 +435,7 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 | PATCH | `/api/members/:id` | Yes | admin | Update member role |
 | DELETE | `/api/members/:id` | Yes | admin | Remove member |
 | POST | `/api/subscription/create` | Yes | admin | Create Razorpay subscription for checkout |
+| POST | `/api/subscription/cancel` | Yes | admin | Cancel active Razorpay subscription (no-op for backdoor users) |
 | POST | `/api/webhooks/razorpay` | No | — | Razorpay webhook (signature-verified) |
 
 ---
@@ -458,12 +459,17 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 - **Subscription creation**: Frontend calls `POST /api/subscription/create` with plan ID → server creates subscription via Razorpay API → returns `subscriptionId` for Razorpay Checkout
 - **Payment flow**: Razorpay Checkout opens in-page → user pays → Razorpay sends webhook
 - **Webhook handler**: `POST /api/webhooks/razorpay` verifies HMAC signature → upserts subscription row on `subscription.activated`/`subscription.charged` → marks cancelled/expired on `subscription.cancelled`/`subscription.expired`
+- **Subscription cancellation**: `POST /api/subscription/cancel` cancels the active Razorpay subscription via API and marks the local record as `cancelled`. For backdoor email users, this is a no-op (returns success without calling Razorpay).
 
 ### 12.4 Upgrade UI
 - `UpgradeBanner` component shown on Dashboard for free-tier admin users
 - Monthly/Annual toggle with price display
 - "Upgrade Now" button opens Razorpay Checkout inline
 - Hidden for premium users, backdoor emails, and non-admin members
+
+### 12.5 Pro Badge & Cancel Subscription
+- **Pro badge**: An orange gradient "PRO" tag displayed next to the user's name in the Header dropdown for all premium users (paid + backdoor)
+- **Cancel Subscription**: A "Cancel Subscription" button appears in the Header dropdown for premium admin users. Shows a confirmation dialog before cancelling. For backdoor users the backend no-ops; for paid users it cancels via Razorpay API and refreshes the user context to update UI state.
 
 ---
 

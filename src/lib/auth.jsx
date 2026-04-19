@@ -76,8 +76,12 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try { setUser(await api.getUser()); } catch { /* keep current */ }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, activeAccount, switchAccount }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, refreshUser, activeAccount, switchAccount }}>
       {children}
     </AuthContext.Provider>
   );
