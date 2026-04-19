@@ -208,3 +208,30 @@ create trigger trg_documents_updated_at
 create trigger trg_user_profiles_updated_at
   before update on public.user_profiles
   for each row execute function public.update_updated_at();
+
+-- 5. Subscriptions (Razorpay)
+create table if not exists public.subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  plan text not null check (plan in ('free', 'monthly', 'annual')),
+  status text not null default 'active' check (status in ('active', 'cancelled', 'expired')),
+  razorpay_subscription_id text,
+  razorpay_payment_id text,
+  starts_at timestamptz not null default now(),
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_subscriptions_user on public.subscriptions(user_id);
+create index if not exists idx_subscriptions_razorpay on public.subscriptions(razorpay_subscription_id);
+
+alter table public.subscriptions enable row level security;
+
+create policy "Users can view own subscription"
+  on public.subscriptions for select
+  using (user_id = auth.uid());
+
+create trigger trg_subscriptions_updated_at
+  before update on public.subscriptions
+  for each row execute function public.update_updated_at();

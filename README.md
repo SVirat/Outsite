@@ -21,6 +21,7 @@ A private property management vault for Indian households. Track real estate pro
 - **Upload with Progress** — Drag-and-drop uploads with real-time progress tracking
 - **Drive Sync** — Renaming a property renames its Drive folder; deleting removes Drive files
 - **Email Invitations** — Send invite emails to new members via Resend
+- **Subscription & Billing** — Free tier (3 properties, 1 invite) + Premium via Razorpay (₹99/mo or ₹999/yr)
 - **Responsive Design** — Works on desktop and mobile with light glassmorphism theme
 
 ---
@@ -35,6 +36,7 @@ A private property management vault for Indian households. Track real estate pro
 | **Auth** | Supabase Auth (Google OAuth, PKCE flow) |
 | **Storage** | Google Drive API (`drive.file` scope) |
 | **Email** | Resend |
+| **Payments** | Razorpay Subscriptions |
 | **Maps** | Google Maps Embed + Street View Static API |
 | **Styling** | Pure CSS with custom properties (light glassmorphism theme) |
 | **Hosting** | Vercel (serverless functions + static SPA) |
@@ -50,6 +52,7 @@ No TypeScript. No Next.js. No Tailwind.
 - **Google Cloud** project with OAuth 2.0 credentials
 - **Resend** account (optional, for invitation emails)
 - **Google Maps API key** (optional, for Street View previews)
+- **Razorpay** account (optional, for premium subscriptions)
 
 ---
 
@@ -70,7 +73,7 @@ npm install
    ```
    supabase/migrations/001_create_tables.sql
    ```
-   This creates all 4 tables (`user_profiles`, `properties`, `documents`, `account_members`), RLS policies, indexes, and triggers.
+   This creates all 5 tables (`user_profiles`, `properties`, `documents`, `account_members`, `subscriptions`), RLS policies, indexes, and triggers.
 3. Go to **Authentication → Providers → Google** and enable it with your Google OAuth credentials
 4. Set the redirect URL to: `http://localhost:3000/auth/callback`
 5. Copy your project URL, anon key, and service role key from **Settings → API**
@@ -105,6 +108,14 @@ GDRIVE_ROOT_FOLDER_NAME="Superplot"     # Root folder name in Google Drive
 RESEND_API_KEY=""                            # For invitation emails
 APP_URL="http://localhost:3000"              # For email links
 GOOGLE_MAPS_API_KEY=""                       # For Street View property previews
+RAZORPAY_KEY_ID=""                           # Razorpay API key
+RAZORPAY_KEY_SECRET=""                       # Razorpay API secret
+RAZORPAY_WEBHOOK_SECRET=""                   # Razorpay webhook secret
+RAZORPAY_PLAN_MONTHLY=""                     # Razorpay monthly plan ID
+RAZORPAY_PLAN_ANNUAL=""                      # Razorpay annual plan ID
+VITE_RAZORPAY_KEY_ID=""                      # Same as RAZORPAY_KEY_ID (exposed to frontend)
+VITE_RAZORPAY_PLAN_MONTHLY=""                # Same as RAZORPAY_PLAN_MONTHLY (exposed to frontend)
+VITE_RAZORPAY_PLAN_ANNUAL=""                 # Same as RAZORPAY_PLAN_ANNUAL (exposed to frontend)
 ```
 
 ### 5. Run
@@ -192,6 +203,8 @@ Superplot/
 | POST | `/api/members` | Invite member (+ send email) |
 | PATCH | `/api/members/:id` | Update member role |
 | DELETE | `/api/members/:id` | Remove member |
+| POST | `/api/subscription/create` | Create Razorpay subscription |
+| POST | `/api/webhooks/razorpay` | Razorpay webhook (no auth) |
 
 All endpoints (except `/api/config`) require authentication via `Authorization: Bearer <token>` header. Multi-account requests include `X-Account-Id` header.
 

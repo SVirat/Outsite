@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { api, useCachedData, CacheKeys } from '../lib/api.js';
 import { SCORED_COUNT } from '../lib/constants.js';
 import PropertyGrid from '../components/PropertyGrid.jsx';
+import UpgradeBanner from '../components/UpgradeBanner.jsx';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -71,6 +72,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {!user?.subscription?.isPremium && user?.role === 'admin' && <UpgradeBanner />}
 
       <h2 className="section-heading">Your Properties</h2>
       <PropertyGrid properties={properties || []} />

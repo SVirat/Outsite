@@ -217,6 +217,87 @@ h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
 .stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
 .stat-label { font-size: 0.8125rem; color: var(--text-secondary); }
 
+/* ── UPGRADE BANNER ──────────────────────────────────────────────────────── */
+.upgrade-banner {
+  background: linear-gradient(135deg, #6366f115, #a855f715);
+  border: 1px solid #6366f130;
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.upgrade-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+  min-width: 240px;
+}
+.upgrade-banner-icon {
+  width: 48px; height: 48px; border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.upgrade-banner-text h3 {
+  margin: 0 0 4px; font-size: 1rem; font-weight: 600; color: var(--text-primary);
+}
+.upgrade-banner-text p {
+  margin: 0; font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.5;
+}
+.upgrade-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.billing-toggle {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.billing-option {
+  padding: 6px 14px;
+  border: none;
+  background: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.billing-option.active {
+  background: var(--primary);
+  color: #fff;
+}
+.billing-badge {
+  font-size: 0.625rem;
+  background: #10b981;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.upgrade-price {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.price-amount { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
+.price-period { font-size: 0.8125rem; color: var(--text-secondary); }
+.upgrade-btn { white-space: nowrap; }
+
 /* ── BUTTONS ─────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px;
@@ -1452,6 +1533,9 @@ html { scroll-padding-top: 80px; }
   .form-row { grid-template-columns: 1fr; }
   .search-bar .form-select { width: 100%; }
   h1 { font-size: 1.375rem; }
+  .upgrade-banner { flex-direction: column; align-items: stretch; }
+  .upgrade-banner-actions { flex-direction: column; align-items: stretch; }
+  .upgrade-price { justify-content: center; }
 }
 
 /* ── LOADING PAGE ────────────────────────────────────────────────────────── */

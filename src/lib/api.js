@@ -193,6 +193,13 @@ export const api = {
     if (missing) params.set('missing', missing);
     return apiFetch(`/api/search?${params}`);
   },
+
+  createSubscription: (planId) =>
+    apiFetch('/api/subscription/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId }),
+    }),
 };
 
 // ── Cache keys ───────────────────────────────────────────────────────

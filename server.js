@@ -2,6 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
@@ -39,6 +40,10 @@ const GDRIVE_ROOT = process.env.GDRIVE_ROOT_FOLDER_NAME || 'PropertyVault';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+const RAZORPAY_PLAN_MONTHLY = process.env.RAZORPAY_PLAN_MONTHLY || '';
+const RAZORPAY_PLAN_ANNUAL = process.env.RAZORPAY_PLAN_ANNUAL || '';
+const PREMIUM_BACKDOOR_EMAILS = ['svirat@gmail.com'];
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
@@ -208,11 +213,40 @@ function requireRole(...roles) {
   };
 }
 
+// ── SUBSCRIPTION HELPERS ───────────────────────────────────────────────────────
+const FREE_LIMITS = { maxProperties: 3, maxMembers: 1 };
+
+async function getUserPlan(userId, email) {
+  // Backdoor: always premium for specific emails
+  if (PREMIUM_BACKDOOR_EMAILS.includes(email?.toLowerCase())) {
+    return { plan: 'annual', status: 'active', isPremium: true };
+  }
+  try {
+    const admin = adminSupabase();
+    const { data } = await admin
+      .from('subscriptions')
+      .select('plan, status, expires_at')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    if (data && (!data.expires_at || new Date(data.expires_at) > new Date())) {
+      return { plan: data.plan, status: data.status, isPremium: data.plan !== 'free' };
+    }
+  } catch {
+    // Table may not exist yet or no rows — treat as free
+  }
+  return { plan: 'free', status: 'active', isPremium: false };
+}
+
 // ── EXPRESS APP ────────────────────────────────────────────────────────────────
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-app.use('/api', express.json());
+app.use('/api', express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 
 function slugify(name) {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -278,14 +312,18 @@ app.get('/api/user', auth, async (req, res) => {
     }
   }
 
+  const userEmail = p?.email || u.email || '';
+  const subscription = await getUserPlan(u.id, userEmail);
+
   res.json({
     id: u.id,
     name: p?.name || u.user_metadata?.full_name || '',
-    email: p?.email || u.email || '',
+    email: userEmail,
     image: p?.image || u.user_metadata?.avatar_url || '',
     role: req.effectiveRole,
     accounts,
     activeAccount: req.accountId,
+    subscription,
   });
 });
 
@@ -336,6 +374,15 @@ app.post('/api/members', auth, requireRole('admin'), async (req, res) => {
     return res.status(400).json({ error: "You can't add yourself as a member" });
   }
 
+  // Enforce free-tier member limit
+  const plan = await getUserPlan(req.user.id, userEmail);
+  if (!plan.isPremium) {
+    const admin2 = adminSupabase();
+    const { count } = await admin2.from('account_members').select('id', { count: 'exact', head: true }).eq('owner_id', req.user.id);
+    if (count >= FREE_LIMITS.maxMembers) {
+      return res.status(403).json({ error: `Free plan allows up to ${FREE_LIMITS.maxMembers} member invite. Upgrade to add more.`, code: 'LIMIT_REACHED' });
+    }
+  }
 
   const admin = adminSupabase();
 
@@ -474,6 +521,17 @@ app.post('/api/properties', auth, requireRole('admin'), async (req, res) => {
     return res.status(400).json({ error: 'name, address, zipCode are required' });
   if (!VALID_STATUSES.includes(ownershipStatus))
     return res.status(400).json({ error: 'Invalid ownership status' });
+
+  // Enforce free-tier property limit
+  const userEmail = req.profile?.email || req.user.email;
+  const plan = await getUserPlan(req.user.id, userEmail);
+  if (!plan.isPremium) {
+    const admin2 = adminSupabase();
+    const { count } = await admin2.from('properties').select('id', { count: 'exact', head: true }).eq('owner_id', req.user.id);
+    if (count >= FREE_LIMITS.maxProperties) {
+      return res.status(403).json({ error: `Free plan allows up to ${FREE_LIMITS.maxProperties} properties. Upgrade to add more.`, code: 'LIMIT_REACHED' });
+    }
+  }
 
   const row = bodyToDbRow(req.body);
 
@@ -700,6 +758,96 @@ app.get('/api/search', auth, async (req, res) => {
     }
   }
   res.json(results);
+});
+
+// ── RAZORPAY SUBSCRIPTION ──────────────────────────────────────────────────────
+
+// Create a Razorpay subscription (called from frontend)
+app.post('/api/subscription/create', auth, requireRole('admin'), async (req, res) => {
+  const { planId } = req.body;
+  const validPlans = {
+    monthly: RAZORPAY_PLAN_MONTHLY,
+    annual: RAZORPAY_PLAN_ANNUAL,
+  };
+  const planType = Object.entries(validPlans).find(([, v]) => v === planId)?.[0];
+  if (!planType) return res.status(400).json({ error: 'Invalid plan' });
+
+  const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+  const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    return res.status(500).json({ error: 'Razorpay not configured' });
+  }
+
+  const rpRes = await fetch('https://api.razorpay.com/v1/subscriptions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Basic ' + Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64'),
+    },
+    body: JSON.stringify({
+      plan_id: planId,
+      total_count: planType === 'monthly' ? 120 : 10,
+      customer_notify: 0,
+      notes: { user_id: req.user.id, email: req.profile?.email || req.user.email },
+    }),
+  });
+  const rpData = await rpRes.json();
+  if (!rpRes.ok) return res.status(500).json({ error: rpData.error?.description || 'Failed to create subscription' });
+
+  res.json({ subscriptionId: rpData.id, shortUrl: rpData.short_url });
+});
+
+// Razorpay webhook handler (no auth — Razorpay calls this directly)
+app.post('/api/webhooks/razorpay', async (req, res) => {
+  // Verify signature
+  if (RAZORPAY_WEBHOOK_SECRET) {
+    const sig = req.headers['x-razorpay-signature'];
+    const expected = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+      .update(req.rawBody)
+      .digest('hex');
+    if (sig !== expected) return res.status(400).json({ error: 'Invalid signature' });
+  }
+
+  const event = req.body.event;
+  const payload = req.body.payload;
+  const admin = adminSupabase();
+
+  if (event === 'subscription.activated' || event === 'subscription.charged') {
+    const sub = payload.subscription?.entity;
+    if (!sub) return res.status(200).json({ ok: true });
+
+    const userId = sub.notes?.user_id;
+    if (!userId) return res.status(200).json({ ok: true });
+
+    const planId = sub.plan_id;
+    const planType = planId === RAZORPAY_PLAN_ANNUAL ? 'annual' : 'monthly';
+    const startsAt = new Date(sub.current_start * 1000).toISOString();
+    const expiresAt = new Date(sub.current_end * 1000).toISOString();
+
+    // Upsert subscription
+    await admin.from('subscriptions').upsert({
+      user_id: userId,
+      plan: planType,
+      status: 'active',
+      razorpay_subscription_id: sub.id,
+      razorpay_payment_id: payload.payment?.entity?.id || null,
+      starts_at: startsAt,
+      expires_at: expiresAt,
+    }, { onConflict: 'user_id' });
+  }
+
+  if (event === 'subscription.cancelled' || event === 'subscription.expired') {
+    const sub = payload.subscription?.entity;
+    const userId = sub?.notes?.user_id;
+    if (userId) {
+      await admin.from('subscriptions')
+        .update({ status: event === 'subscription.cancelled' ? 'cancelled' : 'expired' })
+        .eq('user_id', userId)
+        .eq('razorpay_subscription_id', sub.id);
+    }
+  }
+
+  res.status(200).json({ ok: true });
 });
 
 // ── VITE DEV / STATIC PROD ────────────────────────────────────────────────────
