@@ -1,6 +1,6 @@
 # License
 
-**Outsite — Proprietary Software License**
+**Superplot — Proprietary Software License**
 
 Copyright (c) 2026 Virat Singh. All rights reserved.
 

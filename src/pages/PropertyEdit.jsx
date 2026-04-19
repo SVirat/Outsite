@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { api } from '../lib/api.js';
+import { api, useCachedData, CacheKeys } from '../lib/api.js';
 import PropertyForm from '../components/PropertyForm.jsx';
 
 export default function PropertyEdit() {
   const { id } = useParams();
-  const [property, setProperty] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.getProperty(id).then(setProperty).catch(console.error).finally(() => setLoading(false));
-  }, [id]);
+  const [property, loading] = useCachedData(CacheKeys.property(id), () => api.getProperty(id));
 
   if (loading) {
     return (

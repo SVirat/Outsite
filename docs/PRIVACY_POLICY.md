@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Outsite ("we", "our", "us") is a private property management application. We are committed to protecting your privacy and being transparent about how we handle your data. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.
+Superplot ("we", "our", "us") is a private property management application. We are committed to protecting your privacy and being transparent about how we handle your data. This Privacy Policy explains what information we collect, how we use it, and your rights regarding your data.
 
 ## Information We Collect
 
@@ -91,4 +91,4 @@ We may update this Privacy Policy from time to time. We will notify users of mat
 
 ---
 
-*This privacy policy applies to the Outsite application hosted at outsite.vercel.app.*
+*This privacy policy applies to the Superplot application hosted at superplot.vercel.app.*

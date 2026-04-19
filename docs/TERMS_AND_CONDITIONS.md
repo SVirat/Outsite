@@ -4,11 +4,11 @@
 
 ## 1. Acceptance of Terms
 
-By accessing or using Outsite ("the Service"), you agree to be bound by these Terms and Conditions. If you do not agree, do not use the Service.
+By accessing or using Superplot ("the Service"), you agree to be bound by these Terms and Conditions. If you do not agree, do not use the Service.
 
 ## 2. Description of Service
 
-Outsite is a private property management application that allows you to:
+Superplot is a private property management application that allows you to:
 - Track and manage your real estate portfolio
 - Store property documents in your personal Google Drive
 - Search and organize property information
@@ -45,7 +45,7 @@ You agree not to:
 
 ## 7. Intellectual Property
 
-- The Service and its original content, features, and functionality are owned by Outsite
+- The Service and its original content, features, and functionality are owned by Superplot
 - Your data and documents remain your property — we claim no ownership over user content
 
 ## 8. Availability & Warranties
@@ -87,4 +87,4 @@ These Terms shall be governed by and construed in accordance with applicable law
 
 ---
 
-*These terms apply to the Outsite application hosted at outsite.vercel.app.*
+*These terms apply to the Superplot application hosted at superplot.vercel.app.*

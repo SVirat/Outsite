@@ -1,15 +1,19 @@
-# Outsite: Product Requirements Document
+# Superplot: Product Requirements Document
 
 **Version**: 1.0.0
+
 **Date**: April 19, 2026
-**Public URL**: https://outsite.vercel.app
-**Repository**: github.com/SVirat/Outsite
+
+**Public URL**: https://superplot.vercel.app
+
+**Repository**: github.com/SVirat/Superplot
+
 
 ---
 
 ## 1. Product Overview
 
-Outsite is a **private, self-hosted web application** for cataloging real estate properties and storing legal documentation securely via Google Drive. It is designed for an Indian household managing a portfolio of properties (flats, farms, villas, land) with an emphasis on tracking 15+ types of Indian legal/property documents per property.
+Superplot is a **private, self-hosted web application** for cataloging real estate properties and storing legal documentation securely via Google Drive. It is designed for an Indian household managing a portfolio of properties (flats, farms, villas, land) with an emphasis on tracking 15+ types of Indian legal/property documents per property.
 
 **Target users**: A single family — one admin (property owner) and optionally invited family members with varying access levels (contributor or view-only).
 
@@ -31,7 +35,7 @@ Outsite is a **private, self-hosted web application** for cataloging real estate
 | Email | Resend | Member invitation emails |
 | Icons | lucide-react | |
 | Fonts | Inter (Google Fonts) | |
-| Theme | Dark mode, CSS custom properties | |
+| Theme | Light glassmorphism, CSS custom properties | |
 | Maps | Google Maps Embed + Street View Static API | Property previews |
 | Hosting | Vercel | Serverless functions + static SPA |
 
@@ -71,7 +75,7 @@ The app uses a multi-account RBAC system. Each user has their own account by def
 - Supabase Auth handles the OAuth flow using **PKCE** (Proof Key for Code Exchange)
 - OAuth scopes: `openid`, `email`, `profile`, `https://www.googleapis.com/auth/drive.file`
 - OAuth parameters: `access_type: offline`, `prompt: consent` (to get refresh token)
-- Sign-in page: app branding ("Outsite") + "Continue with Google" button
+- Sign-in page: app branding ("Superplot") + "Continue with Google" button
 
 ### 4.2 Auth Callback
 - After Google OAuth redirect, the app exchanges the code for a session
@@ -80,8 +84,9 @@ The app uses a multi-account RBAC system. Each user has their own account by def
 
 ### 4.3 Session Management
 - `auth` middleware on every API route validates the JWT via `sb.auth.getUser(token)`
+- User profile is cached in-memory for 30 seconds to reduce DB round-trips on rapid sequential requests
 - Resolves active account and effective role from `account_members` table
-- Auto-links pending invitations: matches `account_members.email` to the logged-in user's email
+- Pending invitations are auto-linked by email on `/api/user` (login), not on every request
 
 ### 4.4 Sign-Out
 - Signs out via Supabase client, redirects to `/sign-in`
@@ -214,7 +219,7 @@ The system tracks **17 document types** per property. Each type has a machine ke
 ### 7.1 Folder Structure
 ```
 My Drive/
-  └── PropertyVault/          ← root folder (configurable via GDRIVE_ROOT_FOLDER_NAME)
+  └── Superplot/              ← root folder (configurable via GDRIVE_ROOT_FOLDER_NAME)
       ├── Hyderabad Flat/     ← one folder per property (using property name)
       │   ├── sale_deed.pdf
       │   ├── tax_receipt.pdf
@@ -225,7 +230,7 @@ My Drive/
 
 ### 7.2 Upload Flow
 1. Get access token for the account owner (refreshes expired tokens automatically)
-2. Get-or-create root folder ("PropertyVault")
+2. Get-or-create root folder ("Superplot")
 3. Get-or-create property subfolder (using property name)
 4. Upload file via multipart upload
 5. Store `g_drive_file_id` and `view_url` on the document row
@@ -307,20 +312,33 @@ Used on both property cards (dashboard/properties page) and the property detail 
 - `slugify()` converts names to lowercase, replaces non-alphanumeric chars with hyphens
 - Server resolves both UUIDs and slugs via `resolveProperty()`
 
-### 9.5 Page: Sign-In (`/sign-in`)
-- Centered card with app branding ("Outsite")
+### 9.5 Page: Landing (`/`)
+- **Public page** shown to unauthenticated users; authenticated users see the Dashboard
+- **Glassmorphism design**: Frosted-glass cards, animated gradient orbs, blue accent palette
+- **Fixed nav**: Logo (left), section nav tabs — Features, How it Works, Highlights (right), Sign In button (far right). Nav tabs smooth-scroll to the corresponding section
+- **Hero section**: Headline, subtitle, "Get Started with Google" CTA, animated dashboard mockup
+  - **Dashboard mockup**: Interactive 4-tab animation (Dashboard, Properties, Search, Access) auto-cycling every 3.5s with fade transitions. Clicking a tab stops auto-cycle. Each tab shows realistic mock content (stats grid, property detail view, search with preview, access members with activity feed)
+- **Features section** (`#features`): 4-card grid — Document Vault, Google Drive Storage, Family Access, Property Tracking
+- **How it Works section** (`#how-it-works`): 3-step timeline with SVG illustrations — Sign in with Google, Add Properties, Upload Documents
+- **Highlights section** (`#highlights`): Two alternating highlight cards with visuals — "Every property, every document, one dashboard" and "15+ Indian property document types, built in"
+- **Social proof**: Trust indicators (families, documents, availability metrics)
+- **CTA section** (`#cta`): Compact card with "Ready to organize your property portfolio?" heading and Google sign-in button
+- **Footer**: Logo, copyright, links to Privacy Policy and Terms & Conditions
+
+### 9.6 Page: Sign-In (`/sign-in`)
+- Centered card with app branding ("Superplot")
 - Single "Continue with Google" button
 - Redirects to dashboard on successful auth
 
-### 9.6 Page: Dashboard (`/`)
+### 9.7 Page: Dashboard (`/`)
 - **Stats row** (3 cards): Properties count, Documents uploaded, Completion percentage
 - **Property Grid**: Responsive grid of property cards
 - "Add Property" button (hidden for non-admins)
 
-### 9.7 Page: Properties (`/properties`)
+### 9.8 Page: Properties (`/properties`)
 - Same grid as dashboard with "Add Property" button
 
-### 9.8 Page: Property Detail (`/properties/:id`)
+### 9.9 Page: Property Detail (`/properties/:id`)
 - **Header**: Back button, property name, address, Edit/Delete buttons (admin only)
 - **Left Rail**:
   - Map preview (Street View / embed / placeholder) — clickable, opens Google Maps
@@ -330,23 +348,23 @@ Used on both property cards (dashboard/properties page) and the property detail 
   - Document Vault: DocumentList component with all 17 types
   - Photos grid: Thumbnails with hover overlay, upload/delete controls
 
-### 9.9 Page: Edit Property (`/properties/:id/edit`)
+### 9.10 Page: Edit Property (`/properties/:id/edit`)
 - PropertyForm pre-filled with existing data
 - On save, navigates to the updated slug URL
 
-### 9.10 Page: Search (`/search`)
+### 9.11 Page: Search (`/search`)
 - Text search (name, address, ZIP) + "Missing Document" dropdown filter
 - URL-driven with `?q=...&missing=...` query params
 - Results as property grid with count
 
-### 9.11 Page: Access Control (`/access`)
+### 9.12 Page: Access Control (`/access`)
 - **Admin view**:
   - Invite form: email input + role select + "Send Invite" button
   - People with access: Owner row (non-removable) + member rows with role select + remove button
   - Invitation emails sent via Resend
 - **Non-admin view**: Read-only message explaining only the owner can manage access
 
-### 9.12 Page: Settings (`/settings`)
+### 9.13 Page: Settings (`/settings`)
 - Google Drive connection info
 - Account details (read-only)
 
@@ -428,9 +446,10 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 ## 13. UI/UX Specifications
 
 ### 13.1 Theme
-- **Dark mode** with CSS custom properties (no Tailwind)
-- Primary color: Blue accent
-- Background: Dark gray tones
+- **Light glassmorphism** with CSS custom properties (no Tailwind)
+- Frosted-glass cards with `backdrop-filter: blur` and semi-transparent backgrounds
+- Primary color: Blue accent (`#2563EB`)
+- Background: Light blue-gray (`#F8FAFF`) with animated gradient orbs
 - Font: **Inter** (Google Fonts)
 - Border radius: `0.625rem` default
 
@@ -466,7 +485,7 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service role key (bypasses RLS for admin operations) |
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth client secret |
-| `GDRIVE_ROOT_FOLDER_NAME` | No | Root Drive folder name. Default: `"PropertyVault"` |
+| `GDRIVE_ROOT_FOLDER_NAME` | No | Root Drive folder name. Default: `"Superplot"` |
 | `RESEND_API_KEY` | No | Resend API key for invitation emails |
 | `APP_URL` | No | App URL for email links. Default: `http://localhost:3000` |
 | `GOOGLE_MAPS_API_KEY` | No | Google Maps API key for Street View previews |
@@ -494,7 +513,7 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 |-------|------|------|-------------|
 | `/sign-in` | Page | No | Sign-in page |
 | `/auth/callback` | Page | No | OAuth callback handler |
-| `/` | Page | Yes | Dashboard |
+| `/` | Page | No | Landing page (unauthenticated) / Dashboard (authenticated) |
 | `/properties` | Page | Yes | Property listing |
 | `/properties/new` | Page | Yes | Add property form |
 | `/properties/:id` | Page | Yes | Property detail (slug or UUID) |
@@ -524,7 +543,7 @@ The app deploys to **Vercel** as a static SPA + serverless API function.
 - **Build Command**: `npx vite build`
 - **Output Directory**: `dist`
 - All environment variables from `.env.example` must be set in Vercel dashboard → Settings → Environment Variables.
-- `APP_URL` should be set to `https://outsite.vercel.app`.
+- `APP_URL` should be set to `https://superplot.vercel.app`.
 
 ### 17.4 Limitations
 - Serverless function timeout: 10s (free) / 60s (Pro). Large uploads may be affected.
@@ -536,7 +555,7 @@ The app deploys to **Vercel** as a static SPA + serverless API function.
 ## 18. File Structure
 
 ```
-Outsite/
+Superplot/
 ├── server.js                         # Express server + all API routes (exports app for serverless)
 ├── package.json
 ├── vite.config.js
@@ -591,8 +610,8 @@ Outsite/
 
 **Version**: 1.0.0
 **Date**: April 18, 2026
-**Public URL**: outsite.vercel.app
-**Repository**: github.com/SVirat/Outsite
+**Public URL**: superplot.vercel.app
+**Repository**: github.com/SVirat/Superplot
 
 ---
 
@@ -1176,7 +1195,7 @@ When `TEST_MODE=true` environment variable is set:
 - RLS security model
 - `drive.file` scope — app can only access files it creates
 - GDPR-style user rights (access, delete, export)
-- Contact: admin@outsite.vercel.app
+- Contact: admin@superplot.vercel.app
 
 ### 14.2 Terms and Conditions
 - Service provided as-is

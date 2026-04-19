@@ -65,11 +65,15 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    const sb = getSupabase();
-    if (sb) await sb.auth.signOut();
     setUser(null);
     setActiveAccountId(null);
     setActiveAccountState(null);
+    try {
+      const sb = getSupabase();
+      if (sb) await sb.auth.signOut();
+    } catch (e) {
+      console.error('signOut error:', e);
+    }
   }, []);
 
   return (

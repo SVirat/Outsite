@@ -4,6 +4,7 @@ import { useAuth } from './lib/auth.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Header from './components/Header.jsx';
 
+const Landing = lazy(() => import('./pages/Landing.jsx'));
 const SignIn = lazy(() => import('./pages/SignIn.jsx'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback.jsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
@@ -42,7 +43,7 @@ export default function App() {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
-        <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/sign-in" element={<Landing />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route element={<ProtectedLayout />}>
           <Route index element={<Dashboard />} />

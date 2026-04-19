@@ -17,7 +17,7 @@ export default function Settings() {
         <div className="card-header"><h3 className="card-title">Google Drive</h3></div>
         <div className="card-body">
           <p className="text-sm text-muted" style={{ marginBottom: 12 }}>
-            Outsite uses the <code>drive.file</code> scope — it can only access files it creates in your Google Drive, inside a folder called "Outsite". No other files in your Drive can be accessed.
+            Superplot uses the <code>drive.file</code> scope — it can only access files it creates in your Google Drive, inside a folder called "Superplot". No other files in your Drive can be accessed.
           </p>
           <div className="kv-grid">
             <div className="kv-row">

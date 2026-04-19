@@ -1,4 +1,4 @@
-# Outsite
+# Superplot
 
 A private property management vault for Indian households. Track real estate properties, store legal documents securely in your own Google Drive, and manage family access — all from a single dashboard.
 
@@ -21,7 +21,7 @@ A private property management vault for Indian households. Track real estate pro
 - **Upload with Progress** — Drag-and-drop uploads with real-time progress tracking
 - **Drive Sync** — Renaming a property renames its Drive folder; deleting removes Drive files
 - **Email Invitations** — Send invite emails to new members via Resend
-- **Responsive Design** — Works on desktop and mobile with dark theme
+- **Responsive Design** — Works on desktop and mobile with light glassmorphism theme
 
 ---
 
@@ -36,7 +36,7 @@ A private property management vault for Indian households. Track real estate pro
 | **Storage** | Google Drive API (`drive.file` scope) |
 | **Email** | Resend |
 | **Maps** | Google Maps Embed + Street View Static API |
-| **Styling** | Pure CSS with custom properties (dark theme) |
+| **Styling** | Pure CSS with custom properties (light glassmorphism theme) |
 | **Hosting** | Vercel (serverless functions + static SPA) |
 
 No TypeScript. No Next.js. No Tailwind.
@@ -58,8 +58,8 @@ No TypeScript. No Next.js. No Tailwind.
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/SVirat/Outsite.git
-cd Outsite
+git clone https://github.com/SVirat/Superplot.git
+cd Superplot
 npm install
 ```
 
@@ -101,7 +101,7 @@ GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="your-client-secret"
 
 # Optional
-GDRIVE_ROOT_FOLDER_NAME="PropertyVault"     # Root folder name in Google Drive
+GDRIVE_ROOT_FOLDER_NAME="Superplot"     # Root folder name in Google Drive
 RESEND_API_KEY=""                            # For invitation emails
 APP_URL="http://localhost:3000"              # For email links
 GOOGLE_MAPS_API_KEY=""                       # For Street View property previews
@@ -120,7 +120,7 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with Google.
 ## Project Structure
 
 ```
-Outsite/
+Superplot/
 ├── server.js                    # Express server + all API routes (exports app for serverless)
 ├── package.json
 ├── vite.config.js
@@ -161,6 +161,7 @@ Outsite/
         ├── Access.jsx           # Member management
         ├── AuthCallback.jsx     # OAuth callback
         ├── Dashboard.jsx        # Stats + property grid
+        ├── Landing.jsx          # Public landing page
         ├── Properties.jsx       # Property listing
         ├── PropertyDetail.jsx   # Property deep-dive
         ├── PropertyEdit.jsx     # Edit property
@@ -235,7 +236,7 @@ All endpoints (except `/api/config`) require authentication via `Authorization: 
 
 ## Google Drive Behavior
 
-- Documents are stored in the user's **own Google Drive** under a configurable root folder
+- Documents are stored in the user's **own Google Drive** under a configurable root folder (default: `Superplot`)
 - Each property gets its own subfolder (named after the property)
 - Renaming a property **renames** the Drive folder
 - Deleting a property **deletes** the Drive folder and all files
@@ -246,7 +247,7 @@ All endpoints (except `/api/config`) require authentication via `Authorization: 
 
 ## Deployment (Vercel)
 
-The app is deployed to [Vercel](https://vercel.com) at **https://outsite.vercel.app**.
+The app is deployed to [Vercel](https://vercel.com) at **https://superplot.vercel.app**.
 
 ### Setup
 
@@ -255,7 +256,7 @@ The app is deployed to [Vercel](https://vercel.com) at **https://outsite.vercel.
 3. Set **Build Command** to `npx vite build`
 4. Set **Output Directory** to `dist`
 5. Add all environment variables from `.env.example` in **Settings → Environment Variables**
-   - Set `APP_URL` to `https://outsite.vercel.app`
+   - Set `APP_URL` to `https://superplot.vercel.app`
 6. Deploy
 
 ### How It Works

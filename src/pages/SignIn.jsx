@@ -17,7 +17,7 @@ export default function SignIn() {
     <div className="signin-page">
       <div className="signin-card">
         <div className="signin-icon"><Building2 size={40} /></div>
-        <h1 className="signin-title">Outsite</h1>
+        <h1 className="signin-title">Superplot</h1>
         <p className="signin-desc">Your private property management vault</p>
         <button className="btn-google" onClick={signIn}>
           {GOOGLE_ICON}

@@ -149,6 +149,10 @@ async function getGoogleAccessToken(supabase, userId) {
 }
 
 // ── AUTH MIDDLEWARE ─────────────────────────────────────────────────────────────
+// Short-lived in-memory profile cache (avoids DB hit on rapid sequential requests)
+const _profileCache = new Map();
+const PROFILE_TTL = 30_000; // 30 seconds
+
 async function auth(req, res, next) {
   const hdr = req.headers.authorization;
   if (!hdr?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
@@ -157,7 +161,18 @@ async function auth(req, res, next) {
     const sb = supabaseForUser(token);
     const { data: { user }, error } = await sb.auth.getUser(token);
     if (error || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const { data: profile } = await sb.from('user_profiles').select('*').eq('id', user.id).single();
+
+    // Profile: serve from short-lived cache when available
+    const cached = _profileCache.get(user.id);
+    let profile;
+    if (cached && Date.now() - cached.ts < PROFILE_TTL) {
+      profile = cached.data;
+    } else {
+      const { data } = await sb.from('user_profiles').select('*').eq('id', user.id).single();
+      profile = data;
+      _profileCache.set(user.id, { data: profile, ts: Date.now() });
+    }
+
     req.user = user;
     req.profile = profile || { id: user.id, role: 'admin' };
     req.supabase = sb;
@@ -165,7 +180,6 @@ async function auth(req, res, next) {
     // Resolve active account — X-Account-Id header, default to own account
     const requestedAccount = req.headers['x-account-id'];
     if (requestedAccount && requestedAccount !== user.id) {
-      // Check membership
       const admin = adminSupabase();
       const { data: membership } = await admin
         .from('account_members')
@@ -180,14 +194,6 @@ async function auth(req, res, next) {
       req.accountId = user.id;
       req.effectiveRole = 'admin';
     }
-
-    // Link account_members on login (match email → user_id)
-    const admin = adminSupabase();
-    await admin
-      .from('account_members')
-      .update({ user_id: user.id })
-      .eq('email', user.email)
-      .is('user_id', null);
 
     next();
   } catch {
@@ -240,9 +246,16 @@ app.get('/api/user', auth, async (req, res) => {
   const u = req.user;
   const p = req.profile;
 
+  // Link pending invitations by email (one-time on login, not every request)
+  const admin = adminSupabase();
+  await admin
+    .from('account_members')
+    .update({ user_id: u.id })
+    .eq('email', u.email)
+    .is('user_id', null);
+
   // Get accounts this user is a member of
   let accounts = [{ id: u.id, name: 'My Properties', role: 'admin' }];
-  const admin = adminSupabase();
   const { data: memberships } = await admin
     .from('account_members')
     .select('owner_id, role')
@@ -348,17 +361,17 @@ app.post('/api/members', auth, requireRole('admin'), async (req, res) => {
     const roleName = { family_contributor: 'Family — Contributor', family_view: 'Family — View Only', non_family_view: 'Non-Family — View Only' }[role] || role;
     try {
       await resend.emails.send({
-        from: 'Outsite <onboarding@resend.dev>',
+        from: 'Superplot <onboarding@resend.dev>',
         to: email.trim().toLowerCase(),
         subject: `${ownerName} invited you to their property vault`,
         html: `
           <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:32px 0">
-            <h2 style="color:#1a1a2e;margin:0 0 8px">You're invited to Outsite</h2>
+            <h2 style="color:#1a1a2e;margin:0 0 8px">You're invited to Superplot</h2>
             <p style="color:#64748b;font-size:15px;line-height:1.6;margin:0 0 24px">
               <strong>${ownerName}</strong> has invited you to access their property vault as <strong>${roleName}</strong>.
             </p>
             <a href="${APP_URL}/sign-in" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:500;font-size:15px">
-              Sign in to Outsite
+              Sign in to Superplot
             </a>
             <p style="color:#94a3b8;font-size:13px;margin:24px 0 0;line-height:1.5">
               Sign in with your Google account (<strong>${email.trim()}</strong>) to get started.
@@ -592,13 +605,18 @@ app.post('/api/documents/upload', auth, upload.single('file'), async (req, res) 
 
   try {
     const accessToken = await getGoogleAccessToken(adminSupabase(), req.accountId);
+    console.log('[upload] Got access token, finding/creating root folder:', GDRIVE_ROOT);
     const rootFolder = await driveGetOrCreateFolder(accessToken, GDRIVE_ROOT, null);
+    console.log('[upload] Root folder:', rootFolder.id, '- finding/creating property folder:', property.name);
     const propFolder = await driveGetOrCreateFolder(accessToken, property.name, rootFolder.id);
+    console.log('[upload] Property folder:', propFolder.id, '- uploading file:', file.originalname);
     folderId = propFolder.id;
     const uploaded = await driveUpload(accessToken, file.originalname, file.mimetype, file.buffer, propFolder.id);
+    console.log('[upload] File uploaded:', uploaded.id);
     driveFileId = uploaded.id;
     viewUrl = `https://drive.google.com/file/d/${uploaded.id}/view`;
   } catch (err) {
+    console.error('[upload] Drive error:', err);
     return res.status(500).json({ error: 'Drive upload failed: ' + err.message });
   }
 
@@ -701,7 +719,7 @@ if (!process.env.VERCEL) {
   }
 
   app.listen(PORT, async () => {
-    console.log(`\n  Outsite running at http://localhost:${PORT}\n`);
+    console.log(`\n  Superplot running at http://localhost:${PORT}\n`);
 
     // Backfill lat/lng for properties with Google Maps URLs but no coordinates
     try {

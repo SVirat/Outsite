@@ -38,7 +38,7 @@ export default function Sidebar() {
       <nav className={`sidebar${open ? ' open' : ''}`}>
         <div className="sidebar-brand">
           <Building2 size={24} />
-          <span>Outsite</span>
+          <span>Superplot</span>
         </div>
 
         {/* Account switcher */}

@@ -1,5 +1,5 @@
 -- ============================================================
--- Outsite — Supabase schema (complete)
+-- Superplot — Supabase schema (complete)
 -- Run this in the Supabase SQL Editor (Dashboard → SQL Editor)
 -- ============================================================
 
