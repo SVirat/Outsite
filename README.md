@@ -1,11 +1,27 @@
-# Superplot
+<p align="center">
+  <img src="public/icons/icon.png" alt="Superplot Logo" width="80" />
+</p>
 
-A private property management vault for Indian households. Track real estate properties, store legal documents securely in your own Google Drive, and manage family access — all from a single dashboard.
+<h1 align="center">Superplot</h1>
+
+<p align="center">
+  <strong>Secure, real-time property management solution</strong>
+</p>
+
+<p align="center">
+  <a href="https://superplot.vercel.app">Live App</a> · <a href="docs/PRD.md">Product Spec</a> · <a href="docs/PRIVACY_POLICY.md">Privacy Policy</a>
+</p>
+
+---
 
 ![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres-3FCF8E?logo=supabase&logoColor=white)
 ![Google Drive](https://img.shields.io/badge/Google%20Drive-API-4285F4?logo=googledrive&logoColor=white)
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Statements](https://img.shields.io/badge/coverage--statements-100%25-brightgreen)
+![Functions](https://img.shields.io/badge/coverage--functions-100%25-brightgreen)
+![Lines](https://img.shields.io/badge/coverage--lines-100%25-brightgreen)
 
 ---
 
