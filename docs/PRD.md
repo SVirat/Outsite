@@ -1,19 +1,19 @@
-# Superplot: Product Requirements Document
+# Outsite: Product Requirements Document
 
 **Version**: 1.0.0
 
 **Date**: April 19, 2026
 
-**Public URL**: https://superplot.vercel.app
+**Public URL**: https://outsite.vercel.app
 
-**Repository**: github.com/SVirat/Superplot
+**Repository**: github.com/SVirat/Outsite
 
 
 ---
 
 ## 1. Product Overview
 
-Superplot is a **private, self-hosted web application** for cataloging real estate properties and storing legal documentation securely via Google Drive. It is designed for an Indian household managing a portfolio of properties (flats, farms, villas, land) with an emphasis on tracking 15+ types of Indian legal/property documents per property.
+Outsite is a **private, self-hosted web application** for cataloging real estate properties and storing legal documentation securely via Google Drive. It is designed for an Indian household managing a portfolio of properties (flats, farms, villas, land) with an emphasis on tracking 15+ types of Indian legal/property documents per property.
 
 **Target users**: A single family — one admin (property owner) and optionally invited family members with varying access levels (contributor or view-only).
 
@@ -36,8 +36,8 @@ Superplot is a **private, self-hosted web application** for cataloging real esta
 | Icons | lucide-react | |
 | Fonts | Inter (Google Fonts) | |
 | Theme | Light glassmorphism, CSS custom properties | |
+| Payments | Razorpay Subscriptions | Monthly + Annual plans |
 | Maps | Google Maps Embed + Street View Static API | Property previews |
-| Hosting | Vercel | Serverless functions + static SPA |
 
 **No TypeScript. No Next.js. No Tailwind. Pure CSS with custom properties.**
 
@@ -75,7 +75,7 @@ The app uses a multi-account RBAC system. Each user has their own account by def
 - Supabase Auth handles the OAuth flow using **PKCE** (Proof Key for Code Exchange)
 - OAuth scopes: `openid`, `email`, `profile`, `https://www.googleapis.com/auth/drive.file`
 - OAuth parameters: `access_type: offline`, `prompt: consent` (to get refresh token)
-- Sign-in page: app branding ("Superplot") + "Continue with Google" button
+- Sign-in page: app branding ("Outsite") + "Continue with Google" button
 
 ### 4.2 Auth Callback
 - After Google OAuth redirect, the app exchanges the code for a session
@@ -84,9 +84,8 @@ The app uses a multi-account RBAC system. Each user has their own account by def
 
 ### 4.3 Session Management
 - `auth` middleware on every API route validates the JWT via `sb.auth.getUser(token)`
-- User profile is cached in-memory for 30 seconds to reduce DB round-trips on rapid sequential requests
 - Resolves active account and effective role from `account_members` table
-- Pending invitations are auto-linked by email on `/api/user` (login), not on every request
+- Auto-links pending invitations: matches `account_members.email` to the logged-in user's email
 
 ### 4.4 Sign-Out
 - Signs out via Supabase client, redirects to `/sign-in`
@@ -157,23 +156,40 @@ The app uses a multi-account RBAC system. Each user has their own account by def
 
 **Unique constraint**: `(owner_id, email)` — prevents duplicate invitations.
 
-### 5.5 Row-Level Security (RLS)
+### 5.5 `subscriptions`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID (PK) | Default: `gen_random_uuid()` |
+| user_id | UUID | NOT NULL, UNIQUE. FK → `auth.users(id)` CASCADE DELETE |
+| plan | TEXT | `free`, `monthly`, or `annual` |
+| status | TEXT | `active`, `cancelled`, or `expired`. Default: `active` |
+| razorpay_subscription_id | TEXT | Razorpay subscription ID |
+| razorpay_payment_id | TEXT | Last payment ID |
+| starts_at | TIMESTAMPTZ | Default: `NOW()` |
+| expires_at | TIMESTAMPTZ | Nullable |
+| created_at | TIMESTAMPTZ | Auto |
+| updated_at | TIMESTAMPTZ | Auto-updated via trigger |
+
+### 5.6 Row-Level Security (RLS)
 - **user_profiles**: Users can SELECT/UPDATE only their own row
 - **properties**: Full CRUD only for rows where `owner_id = auth.uid()`
 - **documents**: Full CRUD only for documents whose parent property is owned by `auth.uid()`
 - **account_members**: Owner can manage all; members can view their own membership
+- **subscriptions**: Users can SELECT only their own row; service role has full access
 - All tables have RLS enabled with `FORCE ROW LEVEL SECURITY`
 
-### 5.6 Indexes
+### 5.7 Indexes
 - `idx_properties_owner` on `properties(owner_id)`
 - `idx_documents_property` on `documents(property_id)`
 - `idx_account_members_owner` on `account_members(owner_id)`
 - `idx_account_members_email` on `account_members(email)`
 - `idx_account_members_user` on `account_members(user_id)`
+- `idx_subscriptions_user` on `subscriptions(user_id)`
+- `idx_subscriptions_razorpay` on `subscriptions(razorpay_subscription_id)`
 
-### 5.7 Triggers
+### 5.8 Triggers
 - **Auto-create user profile on signup**: `on_auth_user_created` trigger on `auth.users` → inserts into `user_profiles` using `raw_user_meta_data`
-- **Auto-update `updated_at`**: Trigger on `properties`, `documents`, and `user_profiles` sets `updated_at = NOW()` before update
+- **Auto-update `updated_at`**: Trigger on `properties`, `documents`, `user_profiles`, and `subscriptions` sets `updated_at = NOW()` before update
 
 ---
 
@@ -219,7 +235,7 @@ The system tracks **17 document types** per property. Each type has a machine ke
 ### 7.1 Folder Structure
 ```
 My Drive/
-  └── Superplot/              ← root folder (configurable via GDRIVE_ROOT_FOLDER_NAME)
+  └── PropertyVault/          ← root folder (configurable via GDRIVE_ROOT_FOLDER_NAME)
       ├── Hyderabad Flat/     ← one folder per property (using property name)
       │   ├── sale_deed.pdf
       │   ├── tax_receipt.pdf
@@ -230,7 +246,7 @@ My Drive/
 
 ### 7.2 Upload Flow
 1. Get access token for the account owner (refreshes expired tokens automatically)
-2. Get-or-create root folder ("Superplot")
+2. Get-or-create root folder ("PropertyVault")
 3. Get-or-create property subfolder (using property name)
 4. Upload file via multipart upload
 5. Store `g_drive_file_id` and `view_url` on the document row
@@ -312,33 +328,20 @@ Used on both property cards (dashboard/properties page) and the property detail 
 - `slugify()` converts names to lowercase, replaces non-alphanumeric chars with hyphens
 - Server resolves both UUIDs and slugs via `resolveProperty()`
 
-### 9.5 Page: Landing (`/`)
-- **Public page** shown to unauthenticated users; authenticated users see the Dashboard
-- **Glassmorphism design**: Frosted-glass cards, animated gradient orbs, blue accent palette
-- **Fixed nav**: Logo (left), section nav tabs — Features, How it Works, Highlights (right), Sign In button (far right). Nav tabs smooth-scroll to the corresponding section
-- **Hero section**: Headline, subtitle, "Get Started with Google" CTA, animated dashboard mockup
-  - **Dashboard mockup**: Interactive 4-tab animation (Dashboard, Properties, Search, Access) auto-cycling every 3.5s with fade transitions. Clicking a tab stops auto-cycle. Each tab shows realistic mock content (stats grid, property detail view, search with preview, access members with activity feed)
-- **Features section** (`#features`): 4-card grid — Document Vault, Google Drive Storage, Family Access, Property Tracking
-- **How it Works section** (`#how-it-works`): 3-step timeline with SVG illustrations — Sign in with Google, Add Properties, Upload Documents
-- **Highlights section** (`#highlights`): Two alternating highlight cards with visuals — "Every property, every document, one dashboard" and "15+ Indian property document types, built in"
-- **Social proof**: Trust indicators (families, documents, availability metrics)
-- **CTA section** (`#cta`): Compact card with "Ready to organize your property portfolio?" heading and Google sign-in button
-- **Footer**: Logo, copyright, links to Privacy Policy and Terms & Conditions
-
-### 9.6 Page: Sign-In (`/sign-in`)
-- Centered card with app branding ("Superplot")
+### 9.5 Page: Sign-In (`/sign-in`)
+- Centered card with app branding ("Outsite")
 - Single "Continue with Google" button
 - Redirects to dashboard on successful auth
 
-### 9.7 Page: Dashboard (`/`)
+### 9.6 Page: Dashboard (`/`)
 - **Stats row** (3 cards): Properties count, Documents uploaded, Completion percentage
 - **Property Grid**: Responsive grid of property cards
 - "Add Property" button (hidden for non-admins)
 
-### 9.8 Page: Properties (`/properties`)
+### 9.7 Page: Properties (`/properties`)
 - Same grid as dashboard with "Add Property" button
 
-### 9.9 Page: Property Detail (`/properties/:id`)
+### 9.8 Page: Property Detail (`/properties/:id`)
 - **Header**: Back button, property name, address, Edit/Delete buttons (admin only)
 - **Left Rail**:
   - Map preview (Street View / embed / placeholder) — clickable, opens Google Maps
@@ -348,23 +351,23 @@ Used on both property cards (dashboard/properties page) and the property detail 
   - Document Vault: DocumentList component with all 17 types
   - Photos grid: Thumbnails with hover overlay, upload/delete controls
 
-### 9.10 Page: Edit Property (`/properties/:id/edit`)
+### 9.9 Page: Edit Property (`/properties/:id/edit`)
 - PropertyForm pre-filled with existing data
 - On save, navigates to the updated slug URL
 
-### 9.11 Page: Search (`/search`)
+### 9.10 Page: Search (`/search`)
 - Text search (name, address, ZIP) + "Missing Document" dropdown filter
 - URL-driven with `?q=...&missing=...` query params
 - Results as property grid with count
 
-### 9.12 Page: Access Control (`/access`)
+### 9.11 Page: Access Control (`/access`)
 - **Admin view**:
   - Invite form: email input + role select + "Send Invite" button
   - People with access: Owner row (non-removable) + member rows with role select + remove button
   - Invitation emails sent via Resend
 - **Non-admin view**: Read-only message explaining only the owner can manage access
 
-### 9.13 Page: Settings (`/settings`)
+### 9.12 Page: Settings (`/settings`)
 - Google Drive connection info
 - Account details (read-only)
 
@@ -431,10 +434,46 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 | POST | `/api/members` | Yes | admin | Invite member (sends email via Resend) |
 | PATCH | `/api/members/:id` | Yes | admin | Update member role |
 | DELETE | `/api/members/:id` | Yes | admin | Remove member |
+| POST | `/api/subscription/create` | Yes | admin | Create Razorpay subscription for checkout |
+| POST | `/api/subscription/cancel` | Yes | admin | Cancel active Razorpay subscription (no-op for backdoor users) |
+| POST | `/api/webhooks/razorpay` | No | — | Razorpay webhook (signature-verified) |
 
 ---
 
-## 12. Email Invitations
+## 12. Subscription & Billing
+
+### 12.1 Tiers
+| | Free | Premium |
+|---|---|---|
+| Properties | Up to 3 | Unlimited |
+| Member invites | Up to 1 | Unlimited |
+| AI features (future) | No | Yes |
+| Price | ₹0 | ₹99/mo or ₹999/yr |
+
+### 12.2 Enforcement
+- `POST /api/properties` checks property count for free users; returns 403 with `LIMIT_REACHED` if ≥3
+- `POST /api/members` checks member count for free users; returns 403 with `LIMIT_REACHED` if ≥1
+- `getUserPlan()` helper checks `subscriptions` table + backdoor email list
+
+### 12.3 Razorpay Integration
+- **Subscription creation**: Frontend calls `POST /api/subscription/create` with plan ID → server creates subscription via Razorpay API → returns `subscriptionId` for Razorpay Checkout
+- **Payment flow**: Razorpay Checkout opens in-page → user pays → Razorpay sends webhook
+- **Webhook handler**: `POST /api/webhooks/razorpay` verifies HMAC signature → upserts subscription row on `subscription.activated`/`subscription.charged` → marks cancelled/expired on `subscription.cancelled`/`subscription.expired`
+- **Subscription cancellation**: `POST /api/subscription/cancel` cancels the active Razorpay subscription via API and marks the local record as `cancelled`. For backdoor email users, this is a no-op (returns success without calling Razorpay).
+
+### 12.4 Upgrade UI
+- `UpgradeBanner` component shown on Dashboard for free-tier admin users
+- Monthly/Annual toggle with price display
+- "Upgrade Now" button opens Razorpay Checkout inline
+- Hidden for premium users, backdoor emails, and non-admin members
+
+### 12.5 Pro Badge & Cancel Subscription
+- **Pro badge**: An orange gradient "PRO" tag displayed next to the user's name in the Header dropdown for all premium users (paid + backdoor)
+- **Cancel Subscription**: A "Cancel Subscription" button appears in the Header dropdown for premium admin users. Shows a confirmation dialog before cancelling. For backdoor users the backend no-ops; for paid users it cancels via Razorpay API and refreshes the user context to update UI state.
+
+---
+
+## 13. Email Invitations
 
 - When an admin adds a member, an **invitation email** is sent via Resend
 - Email includes: inviter's name, the app URL, and instructions to sign in with Google
@@ -443,40 +482,39 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 
 ---
 
-## 13. UI/UX Specifications
+## 14. UI/UX Specifications
 
-### 13.1 Theme
+### 14.1 Theme
 - **Light glassmorphism** with CSS custom properties (no Tailwind)
-- Frosted-glass cards with `backdrop-filter: blur` and semi-transparent backgrounds
-- Primary color: Blue accent (`#2563EB`)
-- Background: Light blue-gray (`#F8FAFF`) with animated gradient orbs
+- Primary color: Indigo accent (`#6366f1`)
+- Background: Light with frosted-glass surfaces
 - Font: **Inter** (Google Fonts)
 - Border radius: `0.625rem` default
 
-### 13.2 Currency
+### 14.2 Currency
 - All monetary values in **Indian Rupees (₹)**
 - `en-IN` locale formatting (lakh/crore grouping)
 
-### 13.3 Date Format
+### 14.3 Date Format
 - `en-IN` locale, medium format: "18 Apr 2026"
 
-### 13.4 Responsive Design
+### 14.4 Responsive Design
 - Mobile-first
 - Sidebar visible at `lg` breakpoint (~1024px)
 - Property grid: 1 → 2 → 3 → 4 columns
 - Property detail: Stacked → side-by-side at `lg`
 
-### 13.5 Loading States
+### 14.5 Loading States
 - Every page has skeleton loading matching the final layout
 - Animated pulse effect
 
-### 13.6 Optimistic Updates
+### 14.6 Optimistic Updates
 - Document deletion: Immediately hidden from UI, API call in background, reverts on failure
 - Property deletion: Navigates to `/properties` immediately
 
 ---
 
-## 14. Environment Variables
+## 15. Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -485,35 +523,43 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service role key (bypasses RLS for admin operations) |
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth client secret |
-| `GDRIVE_ROOT_FOLDER_NAME` | No | Root Drive folder name. Default: `"Superplot"` |
+| `GDRIVE_ROOT_FOLDER_NAME` | No | Root Drive folder name. Default: `"PropertyVault"` |
 | `RESEND_API_KEY` | No | Resend API key for invitation emails |
 | `APP_URL` | No | App URL for email links. Default: `http://localhost:3000` |
 | `GOOGLE_MAPS_API_KEY` | No | Google Maps API key for Street View previews |
+| `RAZORPAY_KEY_ID` | No | Razorpay API key ID |
+| `RAZORPAY_KEY_SECRET` | No | Razorpay API secret |
+| `RAZORPAY_WEBHOOK_SECRET` | No | Razorpay webhook signature secret |
+| `RAZORPAY_PLAN_MONTHLY` | No | Razorpay monthly plan ID |
+| `RAZORPAY_PLAN_ANNUAL` | No | Razorpay annual plan ID |
+| `VITE_RAZORPAY_KEY_ID` | No | Same as RAZORPAY_KEY_ID (exposed to frontend via Vite) |
+| `VITE_RAZORPAY_PLAN_MONTHLY` | No | Same as RAZORPAY_PLAN_MONTHLY (exposed to frontend) |
+| `VITE_RAZORPAY_PLAN_ANNUAL` | No | Same as RAZORPAY_PLAN_ANNUAL (exposed to frontend) |
 
 ---
 
-## 15. Legal Pages
+## 16. Legal Pages
 
-### 15.1 Privacy Policy (`docs/PRIVACY_POLICY.md`)
+### 16.1 Privacy Policy (`docs/PRIVACY_POLICY.md`)
 - Data collection: account info, property metadata, documents stored in user's own Drive, OAuth tokens
 - No third-party sharing, no ads, no analytics
 - RLS security model, `drive.file` scope
 - GDPR-style user rights
 
-### 15.2 Terms and Conditions (`docs/TERMS_AND_CONDITIONS.md`)
+### 16.2 Terms and Conditions (`docs/TERMS_AND_CONDITIONS.md`)
 - Service provided as-is
 - User retains ownership of all data
 - Limitation of liability
 
 ---
 
-## 16. Route Map
+## 17. Route Map
 
 | Route | Type | Auth | Description |
 |-------|------|------|-------------|
 | `/sign-in` | Page | No | Sign-in page |
 | `/auth/callback` | Page | No | OAuth callback handler |
-| `/` | Page | No | Landing page (unauthenticated) / Dashboard (authenticated) |
+| `/` | Page | Yes | Dashboard |
 | `/properties` | Page | Yes | Property listing |
 | `/properties/new` | Page | Yes | Add property form |
 | `/properties/:id` | Page | Yes | Property detail (slug or UUID) |
@@ -524,57 +570,24 @@ Responsive grid: 1 col → 2 col → 3 col → 4 col. Empty state with "No prope
 
 ---
 
-## 17. Deployment (Vercel)
-
-The app deploys to **Vercel** as a static SPA + serverless API function.
-
-### 17.1 Architecture
-- **Frontend**: Vite builds the React SPA to `dist/`. Vercel serves it as static files.
-- **API**: All Express routes are exported from `server.js` and re-exported via `api/index.js` as a single Vercel serverless function.
-- **Routing**: `vercel.json` rewrites `/api/*` to the serverless function and all other paths to `index.html` (SPA fallback).
-
-### 17.2 Environment Detection
-- On Vercel, `process.env.VERCEL` is set to `'1'` automatically.
-- When running on Vercel, `server.js` skips Vite middleware, static file serving, and `app.listen()`.
-- Environment variables are read from `process.env` (set in Vercel dashboard), not from a `.env` file.
-
-### 17.3 Vercel Settings
-- **Framework Preset**: Other
-- **Build Command**: `npx vite build`
-- **Output Directory**: `dist`
-- All environment variables from `.env.example` must be set in Vercel dashboard → Settings → Environment Variables.
-- `APP_URL` should be set to `https://superplot.vercel.app`.
-
-### 17.4 Limitations
-- Serverless function timeout: 10s (free) / 60s (Pro). Large uploads may be affected.
-- Function body size limit: ~4.5MB (free tier). Multer memory buffer may hit this for large files.
-- Coordinate backfill only runs on local server startup (not on Vercel).
-
----
-
 ## 18. File Structure
 
 ```
-Superplot/
-├── server.js                         # Express server + all API routes (exports app for serverless)
+Outsite/
+├── server.js                         # Express server + all API routes + Vite dev middleware
 ├── package.json
 ├── vite.config.js
-├── vercel.json                       # Vercel deployment config (rewrites, function settings)
 ├── index.html                        # SPA entry point
 ├── .env                              # Environment variables (not committed)
 ├── .env.example                      # Template
-├── .gitignore                        # Ignores node_modules, dist, .env
+├── PRD.md                            # This document
 ├── README.md                         # Setup & usage guide
-├── LICENSE.md                        # Proprietary license
-├── api/
-│   └── index.js                      # Vercel serverless entry point (re-exports Express app)
 ├── docs/
-│   ├── PRD.md                        # This document
 │   ├── PRIVACY_POLICY.md
 │   └── TERMS_AND_CONDITIONS.md
 ├── supabase/
 │   └── migrations/
-│       └── 001_create_tables.sql     # Full schema (4 tables + RLS + triggers)
+│       └── 001_create_tables.sql     # Full schema (5 tables + RLS + triggers)
 └── src/
     ├── App.jsx                       # React Router setup, lazy-loaded routes
     ├── main.jsx                      # React DOM entry
@@ -593,11 +606,12 @@ Superplot/
     │   ├── PropertyForm.jsx          # Add/edit property form
     │   ├── PropertyGrid.jsx          # Responsive property card grid
     │   ├── Sidebar.jsx               # Navigation + account switcher
+    │   ├── UpgradeBanner.jsx         # Premium upgrade CTA with Razorpay
     │   └── UploadDialog.jsx          # Upload modal with drag-drop + progress
     └── pages/
         ├── Access.jsx                # Member management (RBAC)
         ├── AuthCallback.jsx          # OAuth callback handler
-        ├── Dashboard.jsx             # Stats + property grid
+        ├── Dashboard.jsx             # Stats + property grid + upgrade banner
         ├── Properties.jsx            # Property listing
         ├── PropertyDetail.jsx        # Property deep-dive
         ├── PropertyEdit.jsx          # Edit property wrapper
@@ -610,8 +624,8 @@ Superplot/
 
 **Version**: 1.0.0
 **Date**: April 18, 2026
-**Public URL**: superplot.vercel.app
-**Repository**: github.com/SVirat/Superplot
+**Public URL**: outsite.vercel.app
+**Repository**: github.com/SVirat/Outsite
 
 ---
 
@@ -1195,7 +1209,7 @@ When `TEST_MODE=true` environment variable is set:
 - RLS security model
 - `drive.file` scope — app can only access files it creates
 - GDPR-style user rights (access, delete, export)
-- Contact: admin@superplot.vercel.app
+- Contact: admin@outsite.vercel.app
 
 ### 14.2 Terms and Conditions
 - Service provided as-is
