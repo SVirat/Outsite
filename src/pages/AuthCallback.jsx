@@ -7,7 +7,7 @@ export default function AuthCallback() {
     (async () => {
       try {
         const sb = getSupabase();
-        if (!sb) { window.location.replace('/'); return; }
+        if (!sb) { window.location.replace('/dashboard'); return; }
 
         // With PKCE flow + detectSessionInUrl (default true),
         // Supabase auto-exchanges the ?code= during client init.
@@ -29,7 +29,7 @@ export default function AuthCallback() {
           }
         }
 
-        window.location.replace('/');
+        window.location.replace('/dashboard');
       } catch (err) {
         console.error('Auth callback error:', err);
         window.location.replace('/sign-in');

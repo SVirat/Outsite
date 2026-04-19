@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { ROLE_LABELS } from '../lib/constants.js';
 
 const NAV = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/properties', icon: Building2, label: 'Properties' },
   { to: '/search', icon: Search, label: 'Search' },
   { to: '/access', icon: Shield, label: 'Access Control', adminOnly: true },
@@ -29,7 +29,7 @@ export default function Sidebar() {
   function handleSwitch(accountId) {
     switchAccount(accountId);
     setAccountOpen(false);
-    navigate('/');
+    navigate('/dashboard');
   }
 
   return (

@@ -460,7 +460,7 @@ export default function Landing() {
   const { signIn, user, loading } = useAuth();
 
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="landing">

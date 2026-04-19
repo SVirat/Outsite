@@ -23,7 +23,7 @@ function Loading() {
 function ProtectedLayout() {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
-  if (!user) return <Navigate to="/sign-in" replace />;
+  if (!user) return <Navigate to="/" replace />;
   return (
     <div className="app-layout">
       <Sidebar />
@@ -39,14 +39,22 @@ function ProtectedLayout() {
   );
 }
 
+function HomePage() {
+  const { user, loading } = useAuth();
+  if (loading) return <Loading />;
+  if (user) return <Dashboard />;
+  return <Landing />;
+}
+
 export default function App() {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
+        <Route path="/" element={<HomePage />} />
         <Route path="/sign-in" element={<Landing />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route element={<ProtectedLayout />}>
-          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="properties" element={<Properties />} />
           <Route path="properties/new" element={<PropertyNew />} />
           <Route path="properties/:id" element={<PropertyDetail />} />
