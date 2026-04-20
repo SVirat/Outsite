@@ -52,8 +52,7 @@
 |---|---|---|
 | Properties | Up to 3 | Unlimited |
 | Member invites | Up to 1 | Unlimited |
-| AI Chat & RAG | ✗ | ✓ |
-| BYOK (own API key) | ✗ | ✓ |
+| AI Functionality | ❌ | ✅ | 
 | Price | ₹0 | ₹99/mo or ₹999/yr |
 
 ---
